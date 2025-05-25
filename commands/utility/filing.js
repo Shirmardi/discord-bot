@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
+const { api_key } = require('../config.json');
 
 module.exports = {
     category: 'utility',
@@ -82,7 +83,7 @@ module.exports = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': process.env.API_KEY
+                    'X-API-Key': api_key
                 },
                 body: JSON.stringify(filingData)
             });
