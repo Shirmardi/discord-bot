@@ -1,12 +1,13 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 
 module.exports = {
     category: 'utility',
     data: new SlashCommandBuilder()
         .setName('filing')
-        .setDescription('Post a filing')
+        .setDescription('Save a filing')
         .addStringOption(option =>
             option.setName('organisation')
                 .setDescription('Organisation')
@@ -66,7 +67,7 @@ module.exports = {
             fs.mkdirSync(dirPath);
         }
 
-        const newFiling = {
+        const filingData = {
             docket,
             organisation,
             type,
@@ -76,16 +77,28 @@ module.exports = {
             preview: mainBody.split(" ").slice(0, 5).join(" ") + (mainBody.split(" ").length > 5 ? '...' : '')
         };
 
-        const filePath = path.join(dirPath, 'dockets.json');
-
-        let index = [];
         try {
-            index = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        } catch {
-            index = [];
-        }
+            const apiResponse = await fetch('https://justin.cv/api/docket-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': process.env.API_KEY
+                },
+                body: JSON.stringify(filingData)
+            });
 
-        index.push(newFiling);
-        fs.writeFileSync(filePath, JSON.stringify(index, null, 4));
+            if (!apiResponse.ok) {
+                throw new Error(`API request failed with status ${apiResponse.status}`);
+            }
+
+            const result = await apiResponse.json();
+            console.log('Docket data created successfully:', result);
+        } catch (error) {
+            console.error('Error sending filing to API:', error);
+            await interaction.followUp({ 
+                content: '⚠️ The filing was posted but there was an error saving it to the database. Please contact an administrator.',
+                ephemeral: true 
+            });
+        }
     },
 };
