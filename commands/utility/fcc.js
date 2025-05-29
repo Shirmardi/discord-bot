@@ -6,17 +6,21 @@ module.exports = {
         .setName('fcc')
         .setDescription('Post FCC filing')
         .addStringOption(option =>
+            option.setName('docket')
+                .setDescription('Docket number')
+                .setRequired(true))
+        .addStringOption(option =>
             option.setName('organisation')
                 .setDescription('ITU or whatever')
                 .setRequired(true))
         .addStringOption(option =>
+            option.setName('link')
+                .setDescription('The link to the filing pdf')
+                .setRequired(true))        
+        .addStringOption(option =>
             option.setName('type')
                 .setDescription('OET, Notice, comment etc')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('main-body')
-                .setDescription('The main contents of the filing')
-                .setRequired(true))
+                .setRequired(false))
         .addStringOption(option =>
             option.setName('optional-notes')
                 .setDescription('Extra notes')
@@ -25,7 +29,7 @@ module.exports = {
     async execute(interaction) {
         const organisation = interaction.options.getString('organisation');
         const type = interaction.options.getString('type');
-        const mainBody = interaction.options.getString('main-body');
+        const mainBody = interaction.options.getString('link');
         const optionalNotes = interaction.options.getString('optional-notes');
 
         const formattedMessage = `**FCC Filing Submitted**

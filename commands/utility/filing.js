@@ -1,44 +1,30 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 
 module.exports = {
     category: 'utility',
     data: new SlashCommandBuilder()
         .setName('filing')
-        .setDescription('Post a filing')
+        .setDescription('Save a filing')
         .addStringOption(option =>
             option.setName('organisation')
-                .setDescription('Organisation')
+                .setDescription('Organisation (FCC, ITU, ECFS, etc)')
                 .setRequired(true))
-        .addStringOption(option =>
-            option.setName('type')
-                .setDescription('OET, Notice, comment etc')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('main-body')
-                .setDescription('The main contents of the filing')
+        .addAttachmentOption(option =>
+            option.setName('link')
+                .setDescription('Add a link to the related filing (PDF, image)')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('docket')
                 .setDescription('Docket number')
-                .setRequired(false))
-        .addAttachmentOption(option =>
-            option.setName('attachment')
-                .setDescription('Upload a related file (PDF, image, etc.)')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('optional-notes')
-                .setDescription('Keywords, hashtags etc')
-                .setRequired(false)),
+                .setRequired(true)),
 
     async execute(interaction) {
         const organisation = interaction.options.getString('organisation');
-        const type = interaction.options.getString('type');
-        const mainBody = interaction.options.getString('main-body');
+        const attachment = interaction.options.getAttachment('link');
         const docket = interaction.options.getString('docket');
-        const attachment = interaction.options.getAttachment('attachment');
-        const optionalNotes = interaction.options.getString('optional-notes');
 
         const embed = new EmbedBuilder()
             .setTitle('📡 Filing Submitted')
@@ -66,26 +52,36 @@ module.exports = {
             fs.mkdirSync(dirPath);
         }
 
-        const newFiling = {
+        const filingData = {
             docket,
             organisation,
             type,
             messageUrl: `https://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${response.id}`,
             timestamp: new Date().toISOString(),
-            notes: optionalNotes || '',
-            preview: mainBody.split(" ").slice(0, 5).join(" ") + (mainBody.split(" ").length > 5 ? '...' : '')
         };
 
-        const filePath = path.join(dirPath, 'dockets.json');
-
-        let index = [];
         try {
-            index = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        } catch {
-            index = [];
-        }
+            const apiResponse = await fetch('https://justin.cv/api/docket-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': process.env.API_KEY
+                },
+                body: JSON.stringify(filingData)
+            });
 
-        index.push(newFiling);
-        fs.writeFileSync(filePath, JSON.stringify(index, null, 4));
+            if (!apiResponse.ok) {
+                throw new Error(`API request failed with status ${apiResponse.status}`);
+            }
+
+            const result = await apiResponse.json();
+            console.log('Docket data created successfully:', result);
+        } catch (error) {
+            console.error('Error sending filing to API:', error);
+            await interaction.followUp({ 
+                content: '⚠️ The filing was posted but there was an error saving it to the database. Please contact an administrator.',
+                ephemeral: true 
+            });
+        }
     },
 };
