@@ -1,7 +1,8 @@
+require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require('discord.js');
-const { token } = require('./config.json');
+const logger = require('./utils/logger');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -17,14 +18,15 @@ for (const folder of commandFolders) {
         const command = require(filePath);
         if ('data' in command && 'execute' in command) {
             client.commands.set(command.data.name, command);
+            logger.info(`Loaded command: ${command.data.name}`);
         } else {
-            console.log(`ya done goofed. ${filePath} is missing a "data" or "execute" property.`);
+            logger.error(`Command file ${filePath} is missing required properties`);
         }
     }
 }
 
 client.once(Events.ClientReady, readyClient => {
-    console.log(`${readyClient.user.tag} bot logged in`);
+    logger.info(`Bot logged in as ${readyClient.user.tag}`);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -32,20 +34,36 @@ client.on(Events.InteractionCreate, async interaction => {
     const command = interaction.client.commands.get(interaction.commandName);
 
     if (!command) {
-        console.error(`There ain't no ${interaction.commandName}`);
+        logger.error(`Command not found: ${interaction.commandName}`);
         return;
     }
 
     try {
         await command.execute(interaction);
+        logger.info(`Command executed: ${interaction.commandName} by ${interaction.user.tag}`);
     } catch (error) {
-        console.error(error);
+        logger.error('Error executing command:', error);
         if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
+            await interaction.followUp({ 
+                content: 'There was an error while executing this command!', 
+                flags: MessageFlags.Ephemeral 
+            });
         } else {
-            await interaction.reply({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ 
+                content: 'There was an error while executing this command!', 
+                flags: MessageFlags.Ephemeral 
+            });
         }
     }
 });
 
-client.login(token);
+// Error handling for uncaught exceptions
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (error) => {
+    logger.error('Unhandled Rejection:', error);
+});
+
+client.login(process.env.DISCORD_TOKEN);

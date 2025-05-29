@@ -2,7 +2,6 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
-const { api_key } = require('../config.json');
 
 module.exports = {
     category: 'utility',
@@ -11,36 +10,21 @@ module.exports = {
         .setDescription('Save a filing')
         .addStringOption(option =>
             option.setName('organisation')
-                .setDescription('Organisation')
+                .setDescription('Organisation (FCC, ITU, ECFS, etc)')
                 .setRequired(true))
-        .addStringOption(option =>
-            option.setName('type')
-                .setDescription('OET, Notice, comment etc')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('main-body')
-                .setDescription('The main contents of the filing')
+        .addAttachmentOption(option =>
+            option.setName('link')
+                .setDescription('Add a link to the related filing (PDF, image)')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('docket')
                 .setDescription('Docket number')
-                .setRequired(false))
-        .addAttachmentOption(option =>
-            option.setName('attachment')
-                .setDescription('Upload a related file (PDF, image, etc.)')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('optional-notes')
-                .setDescription('Keywords, hashtags etc')
-                .setRequired(false)),
+                .setRequired(true)),
 
     async execute(interaction) {
         const organisation = interaction.options.getString('organisation');
-        const type = interaction.options.getString('type');
-        const mainBody = interaction.options.getString('main-body');
+        const attachment = interaction.options.getAttachment('link');
         const docket = interaction.options.getString('docket');
-        const attachment = interaction.options.getAttachment('attachment');
-        const optionalNotes = interaction.options.getString('optional-notes');
 
         const embed = new EmbedBuilder()
             .setTitle('📡 Filing Submitted')
@@ -74,8 +58,6 @@ module.exports = {
             type,
             messageUrl: `https://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${response.id}`,
             timestamp: new Date().toISOString(),
-            notes: optionalNotes || '',
-            preview: mainBody.split(" ").slice(0, 5).join(" ") + (mainBody.split(" ").length > 5 ? '...' : '')
         };
 
         try {
@@ -83,7 +65,7 @@ module.exports = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': api_key
+                    'X-API-Key': process.env.API_KEY
                 },
                 body: JSON.stringify(filingData)
             });

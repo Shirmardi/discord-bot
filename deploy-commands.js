@@ -1,7 +1,8 @@
+require('dotenv').config();
 const { REST, Routes } = require('discord.js');
-const { clientId, guildId, token } = require('./config.json');
 const fs = require('node:fs');
 const path = require('node:path');
+const logger = require('./utils/logger');
 
 const commands = [];
 const foldersPath = path.join(__dirname, 'commands');
@@ -15,24 +16,25 @@ for (const folder of commandFolders) {
         const command = require(filePath);
         if ('data' in command && 'execute' in command) {
             commands.push(command.data.toJSON());
+            logger.info(`Loaded command for deployment: ${command.data.name}`);
         } else {
-            console.log(`ya done goofed. ${filePath} is missing "data" or "execute" property.`);
+            logger.error(`Command file ${filePath} is missing required properties`);
         }
     }
 }
 
-const rest = new REST().setToken(token);
+const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
-        console.log(`Started refreshing ${commands.length} slash commands.`);
+        logger.info(`Started refreshing ${commands.length} slash commands.`);
         const data = await rest.put(
-            Routes.applicationGuildCommands(clientId, guildId),
+            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
             { body: commands },
         );
 
-        console.log(`Successfully reloaded ${data.length} slash commands.`);
+        logger.info(`Successfully reloaded ${data.length} slash commands.`);
     } catch (error) {
-        console.error(error);
+        logger.error('Error deploying commands:', error);
     }
 })();
